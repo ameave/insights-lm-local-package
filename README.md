@@ -191,3 +191,112 @@ n8n is distributed under a [Sustainable Use License](https://github.com/n8n-io/n
 However, if you plan to use InsightsLM as part of a commercial SaaS offering—such as reselling access or hosting a public version for multiple clients—you may need to obtain an n8n Enterprise License. We’re not lawyers, so we recommend that you review the n8n license and contacting their team if your use case falls into a commercial category.
 
 Alternatives: If your use case is restricted by the n8n license, one potential option is to convert key workflows into Supabase Edge Functions. This would allow you to fully avoid using n8n in production.
+
+---
+
+## Frequently Asked Questions (FAQ)
+
+### Upload Error on macOS with Docker Desktop
+
+**Problem:** Getting "Upload Error. Failed to upload document X. Please try again." when uploading documents, pasting text, or submitting links on macOS.
+
+**Solution:** This issue is related to Docker volume mounting on macOS. Use a named volume instead of bind-mount.
+
+Note: This solution was provided by a user in a comment on Youtube. I haven't independently verified it.
+
+**Required changes:**
+
+1. **Update the storage service in your `docker-compose.yml`:**
+   ```yaml
+   services:
+     storage:
+       image: supabase/storage-api:v1.25.7
+       volumes:
+         - supabase_storage_data:/var/lib/storage
+   ```
+
+2. **Update the imgproxy service (if it also uses a bind-mount):**
+   ```yaml
+   services:
+     imgproxy:
+       image: darthsim/imgproxy:v3.8.0
+       volumes:
+         - supabase_storage_data:/var/lib/storage
+   ```
+
+3. **At the bottom of your `docker-compose.yml`, declare the volume:**
+   ```yaml
+   volumes:
+     supabase_storage_data:
+   ```
+
+**Restart with clearing old data:**
+
+Since the bind-mount is still on `./volumes/storage`, the previous containers and mounts need to be removed before bringing it up again:
+
+```bash
+docker compose -p localai -f docker-compose.yml --profile none down -v --remove-orphans   
+```
+
+Finally, restart the service and the issue will be resolved:
+
+```bash
+python3 start_services.py --profile none
+```
+
+### LangFuse Encryption Error
+
+**Problem:** Getting encryption errors when using Langfuse.
+
+**Solution:** You need to use OpenSSL to generate the encryption key properly. This is required in the ENV file:
+
+```bash
+############
+# [required]
+# Langfuse credentials
+# Each of the secret keys you can set to whatever you want, just make it secure!
+# For the encryption key, use the command `openssl rand -hex 32`
+#   openssl is available by default on Linux/Mac
+#   For Windows, you can use the 'Git Bash' terminal installed with git
+############
+
+CLICKHOUSE_PASSWORD=super-secret-key-1
+MINIO_ROOT_PASSWORD=super-secret-key-2
+LANGFUSE_SALT=super-secret-key-3
+NEXTAUTH_SECRET=super-secret-key-4
+ENCRYPTION_KEY=generate-with-openssl # generate via `openssl rand -hex 32`
+```
+
+**Note:** Langfuse isn't actually needed to get this working, so it's likely not the cause of upload issues.
+
+### Login Error - "Invalid Authentication Credentials"
+
+**Problem:** Getting "invalid authentication credentials" error when trying to log in.
+
+**Solution:** This is usually caused by quotes in the environment files. Check your `.env` file and make sure you haven't wrapped the `ANON_KEY` or `SERVICE_ROLE_KEY` in quotes.
+
+**Incorrect:**
+```bash
+SUPABASE_ANON_KEY="your-key-here"
+SUPABASE_SERVICE_ROLE_KEY="your-key-here"
+```
+
+**Correct:**
+```bash
+SUPABASE_ANON_KEY=your-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-key-here
+```
+
+### "Failed to Fetch" Error
+
+If the wrong Anon Key or Project URL was set, the login screen would throw a "Failed to Fetch" error
+
+### Audio Deep Dive Feature Limitation
+
+**Important Note:** The audio deep dive feature with 2 hosts doesn't actually work on the local version. You'd need to use the cloud version that integrates with Google TTS to access this functionality.
+
+### Document OCR Support
+
+**Current Limitation:** This system doesn't currently perform OCR on documents - it only extracts text from machine-readable PDFs.
+
+**Workaround:** You could integrate Docling for OCR functionality. Check out Alan's video on our channel where he demonstrates using Docling locally: [https://www.youtube.com/watch?v=eHw_6jhK8AM](https://www.youtube.com/watch?v=eHw_6jhK8AM)
