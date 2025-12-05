@@ -79,27 +79,51 @@ I recommend you follow along from **10:48** in our [YouTube video](https://www.y
 
 ### Installation Steps
 
-1.  **Clone the Base Local AI Package Repo**
-    * Open your terminal or VS Code and clone Cole Medin's [local-ai-packaged](https://github.com/coleam00/local-ai-packaged) repository. This forms the foundation of our local setup.
-    ```bash
-    git clone https://github.com/coleam00/local-ai-packaged.git
-    cd local-ai-packaged
-    ```
-
-2.  **Clone the InsightsLM Local Package**
-    * Inside the `local-ai-packaged` directory, clone this repository.
+1.  **Clone the InsightsLM Local Package**
+    * Open your terminal or VS Code and clone this repository.
     ```bash
     git clone https://github.com/theaiautomators/insights-lm-local-package.git
+    cd insights-lm-local-package
     ```
 
-3.  **Configure Environment Variables**
-    * In the root of the `local-ai-packaged` directory, make a copy of `.env.example` and rename it to `.env`.
+2.  **Clone the Base Local AI Package Repo**
+    * Inside the `insights-lm-local-package` directory, clone Cole Medin's [local-ai-packaged](https://github.com/coleam00/local-ai-packaged) repository. This forms the foundation of our local setup.
+    ```bash
+    git clone https://github.com/coleam00/local-ai-packaged.git
+    ```
+
+3. **Get the Supabase self-hosted Docker setup**
+    * Inside the `insights-lm-local-package` directory, clone the Supabase Docker repository.
+    * Create the `insightslm-supabase-project` directory for your self-hosted Supabase project.
+    * Copy the `supabase/docker` files over the `insightslm-supabase-project` directory.
+    * Clean up by removing the cloned Supabase repository.
+    ```bash
+    # Get the code
+    git clone --depth 1 https://github.com/supabase/supabase
+
+    # Make your new supabase project directory
+    mkdir insightslm-supabase-project
+
+    # Tree should look like this
+    # .
+    # ├── supabase
+    # └── insightslm-supabase-project
+
+    # Copy the compose files over to your project
+    cp -rf supabase/docker/* insightslm-supabase-project
+
+    # Clean up
+    rm -rf supabase
+    ```
+
+4.  **Configure Environment Variables**
+    * Copy the `local-ai-packaged/.env.example` file to the root of this project and rename it to `.env`.
     * Populate the necessary secrets (n8n secrets, postgres password, etc.) as described in Cole's repo. You can use a password generator for secure keys.
     * Generate the Supabase `JWT_SECRET`, `ANON_KEY`, and `SERVICE_ROLE_KEY` using the instructions in the documentation.
-    * Open the `.env.copy` file located in `insights-lm-local-package/` and copy all the variables from it.
+    * Open the `.env.copy` file located in this project and copy all the variables from it.
     * Paste these new variables at the end of your main `.env` file. These include URLs for the local services and a webhook auth key which you need to set.
 
-4.  **Update Docker Compose**
+5.  **Update Docker Compose**
     * Open the main `docker-compose.yml` file in the root directory.
     * Open the `docker-compose.yml.copy` file located inside `insights-lm-local-package/`.
     * Copy the `whisper-cache` volume and the three services (`insights-lm`, `coqui-tts`, `whisper-asr`) from the `.copy` file. 
@@ -107,7 +131,7 @@ I recommend you follow along from **10:48** in our [YouTube video](https://www.y
     * Note: Both Coqui and Whisper are configured in these services to work on a GPU. If you are using Apple Silicon or a CPU then check out their respective documentation on how adjust these.
     * Update the Olama model to `qwen3:8b-q4_K_M` on line 55.
 
-5.  **Start the Services**
+6.  **Start the Services**
     * Open up Docker Desktop
     * Run the start script provided in Cole's repository. Use the command appropriate for your system (e.g., Nvidia GPU). This will download all the necessary Docker images and start the containers. This may take a while.
     ```bash
@@ -115,23 +139,23 @@ I recommend you follow along from **10:48** in our [YouTube video](https://www.y
     python start_services.py --profile gpu-nvidia
     ```
 
-6.  **Import Supabase Script**
+7.  **Import Supabase Script**
     * Login to your Supabase instance (usually at `http://localhost:8000`)
     * Go to SQL Editor
     * Paste the contents of the file located in `insights-lm-local-package/supabase-migration.sql` into the SQL editor and click Run
     * You should get a "Success. No rows returned" message
 
-7.  **Move Supabase Functions**
+8.  **Move Supabase Functions**
     * Once the Docker images have downloaded and the service are up, navigate to the `insights-lm-local-package/supabase/functions/` directory.
     * Copy all the function folders within it.
     * Paste them into the `supabase/volumes/functions/` directory.
 
-8.  **Update Supabase Docker Configuration**
+9.  **Update Supabase Docker Configuration**
     * Open the `supabase/docker/docker-compose.yml` file.
     * Copy the environment variables listed in `insights-lm-local-package/supabase/docker-compose.yml.copy`.
     * Paste these variables under the `functions` service in the `supabase/docker/docker-compose.yml` file. This gives the edge functions access to your N8N webhook URLs.
 
-9.  **Restart Docker Containers**
+10. **Restart Docker Containers**
     * Shut down all running services using the provided command.
     ```bash
     # Example for Nvidia GPU
@@ -139,9 +163,7 @@ I recommend you follow along from **10:48** in our [YouTube video](https://www.y
     ```
     * Restart the services using the `start_services.py` script again to apply all changes.
 
-
-
-9.  **Import and Configure N8N Workflows**
+11.  **Import and Configure N8N Workflows**
     * Access N8N in your browser (usually at `http://localhost:5678`).
     * Create a new workflow and import the `Import_Insights_LM_Workflows.json` file from the `insights-lm-local-package/n8n/` directory.
     * Follow the steps in the video to configure the importer workflow.
@@ -156,11 +178,66 @@ I recommend you follow along from **10:48** in our [YouTube video](https://www.y
             * Base URL should be "http://ollama:11434"
     * Run the importer workflow to automatically set up all the required InsightsLM workflows in your N8N instance.
 
-10. **Activate Workflows & Test**
+12. **Activate Workflows & Test**
     * Go to your N8N dashboard, find the newly imported workflows, and activate them all (Except the "Extract Text" workflow).
     * Access the InsightsLM frontend (usually at `http://localhost:3010`).
     * Create a user in your local Supabase dashboard (under Authentication) to log in.
     * You're all set! Start uploading documents and chatting with your private AI assistant.
+
+---
+
+## Using the CLI Tool
+
+A command-line interface tool `insightslm_cli.py` is provided to automate common tasks. It uses Click and requires Python 3.
+
+### Setup
+
+1. Ensure you have Python 3 and pip installed.
+2. Create a virtual environment and install dependencies:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+### Commands
+
+- `install`: Prepare the project environment (runs config).
+- `config`: Configure environment variables and secrets.
+- `pull`: Pull latest Docker images.
+- `start`: Start the services.
+- `stop`: Stop the services.
+- `restart`: Restart the services.
+- `reload`: Reload services with build.
+- `delete`: Delete containers and optionally volumes (`--volumes`).
+
+### Options
+
+- `--profile`: Docker Compose profile (cpu, gpu-nvidia, gpu-amd, none). Default: cpu.
+- `--environment`: Environment (private, public). Default: private.
+- `--compose-files`: Additional Docker Compose files.
+
+### Examples
+
+```bash
+# Activate venv
+source .venv/bin/activate
+
+# Install and configure
+python insightslm_cli.py install
+
+# Pull images
+python insightslm_cli.py pull
+
+# Start services with GPU profile
+python insightslm_cli.py --profile gpu-nvidia start
+
+# Stop services
+python insightslm_cli.py stop
+
+# Delete containers and volumes
+python insightslm_cli.py delete --volumes
+```
 
 ---
 
