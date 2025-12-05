@@ -1,0 +1,70 @@
+
+services:
+
+  db:
+    volumes:
+      # Database initialization for n8n support
+      - "./db/integrations/n8n/init_data.sql:/docker-entrypoint-initdb.d/migrations/99-n8n.sql:Z"
+      # Database initialization for langfuse support
+      - "./db/integrations/langfuse/init_data.sql:/docker-entrypoint-initdb.d/migrations/99-langfuse.sql:Z"
+      # InsightsLM initial migration
+      # - "./db/migrations/20251204015637_insights-lm.sql:/docker-entrypoint-initdb.d/migrations/20251204015637_insights-lm.sql:Z"
+      # - "./db/migrations/20251204015637_insights-lm.sql:/etc/postgresql.schema.sql:Z"
+
+  functions:
+    environment:
+      NOTEBOOK_CHAT_URL: "${NOTEBOOK_CHAT_URL}"
+      NOTEBOOK_GENERATION_URL: "${NOTEBOOK_GENERATION_URL}"
+      AUDIO_GENERATION_WEBHOOK_URL: "${AUDIO_GENERATION_WEBHOOK_URL}"
+      DOCUMENT_PROCESSING_WEBHOOK_URL: "${DOCUMENT_PROCESSING_WEBHOOK_URL}"
+      ADDITIONAL_SOURCES_WEBHOOK_URL: "${ADDITIONAL_SOURCES_WEBHOOK_URL}"
+      NOTEBOOK_GENERATION_AUTH: "${NOTEBOOK_GENERATION_AUTH}"
+
+  langfuse-worker:
+    environment: &langfuse-env
+      DATABASE_HOST: db
+      DATABASE_NAME: _langfuse
+      DATABASE_USERNAME: supabase_admin
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      NEXTAUTH_URL: http://localhost:3000
+      DATABASE_URL: !reset null
+    depends_on: &langfuse-depends_on
+      db:
+        condition: service_healthy
+      postgres: !reset null
+
+  langfuse-web:
+    environment:
+      <<: *langfuse-env
+      DATABASE_URL: !reset null
+    depends_on:
+      <<: *langfuse-depends_on
+      postgres: !reset null
+
+  n8n-import:
+    environment: &n8n-env
+      DB_POSTGRESDB_DATABASE: _n8n
+      DB_POSTGRESDB_SCHEMA: n8n
+      DB_POSTGRESDB_USER: supabase_admin
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  n8n:
+    expose:
+      - 5678/tcp
+    environment:
+      <<: *n8n-env
+
+  postgres: !reset null
+
+  ollama-pull-llama-cpu:
+    command: &pull-ollama-command
+      - "-c"
+      - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull ${INSIGHTSLM_MODEL}; OLLAMA_HOST=ollama:11434 ollama pull ${EMBEDDINGS_MODEL}"
+
+  ollama-pull-llama-gpu:
+    command: *pull-ollama-command
+  
+  ollama-pull-llama-gpu-amd:
+    command: *pull-ollama-command

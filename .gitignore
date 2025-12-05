@@ -1,0 +1,63 @@
+# Environment variables (sensitive data)
+.env
+.env.local
+.env.production
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python virtual environments and dependencies
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Docker volumes and data (to avoid committing large/generated data)
+supabase/volumes/db/data/
+local-ai-packaged/volumes/
+
+*.log
+
+# Supabase generated files
+supabase
+
+# N8N and other service logs
+n8n/logs/
+local-ai-packaged/searxng/settings.yml  # Generated, but keep base if needed
+
+# IDE and editor files
+.vscode/settings.json  # If not shared, or customize as needed
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+*~
+
+# Build outputs
+dist/
+build/
+*.tgz
+*.tar.gz
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Secrets and keys (additional safety)
+secrets/
+*.key
+*.pem
+
+# Ignore local-ai-packaged repo
+local-ai-packaged/
