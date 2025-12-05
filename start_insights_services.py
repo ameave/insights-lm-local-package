@@ -277,13 +277,9 @@ def main():
     stop_existing_containers(args.profile)
 
     # First pull all necessary images
-    pull_docker_images([
-        "local-supabase/docker-compose.yml",
-        "insights-lm-local-package/docker-compose.yml",
-        "docker-compose.yml"
-        ] + args.compose_files, update=False)
+    pull_docker_images([ "docker-compose.yml" ] + args.compose_files, update=False)
 
-    compose_files = args.compose_files.copy() + ["insights-lm-local-package/supabase-docker-compose.yml"]
+    compose_files = args.compose_files.copy()
 
     start_insights_lm(args.profile, args.environment, compose_files)
 
