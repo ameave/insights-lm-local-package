@@ -1,13 +1,12 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -45,7 +44,7 @@ serve(async (req) => {
     // Extract the file path from the existing URL
     // Assuming the URL format is similar to: .../storage/v1/object/sign/bucket/path
     const urlParts = notebook.audio_overview_url.split('/')
-    const bucketIndex = urlParts.findIndex(part => part === 'audio')
+    const bucketIndex = urlParts.findIndex((part: string) => part === 'audio')
     
     if (bucketIndex === -1) {
       throw new Error('Invalid audio URL format')
@@ -101,7 +100,7 @@ serve(async (req) => {
     console.error('Error in refresh-audio-url function:', error)
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to refresh audio URL'
+        error: (error as Error).message || 'Failed to refresh audio URL'
       }),
       {
         status: 400,

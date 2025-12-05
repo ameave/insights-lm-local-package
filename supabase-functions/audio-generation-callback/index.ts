@@ -1,13 +1,12 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -79,7 +78,7 @@ serve(async (req) => {
     console.error('Error in audio-generation-callback:', error)
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to process callback' 
+        error: (error as Error).message || 'Failed to process callback' 
       }),
       { 
         status: 500, 

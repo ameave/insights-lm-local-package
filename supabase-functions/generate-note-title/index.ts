@@ -1,6 +1,6 @@
-
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+export type Segment = {
+  text: string;
+}
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -36,11 +36,12 @@ serve(async (req) => {
         // Extract text from first few segments
         textContent = parsed.segments
           .slice(0, 3)
-          .map((segment: any) => segment.text)
+          .map((segment: Segment) => segment.text)
           .join(' ');
       }
     } catch (e) {
       // Content is already plain text
+      console.log('Content is plain text, no parsing needed.', e);
     }
 
     // Truncate content to avoid token limits
@@ -87,7 +88,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in generate-note-title function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ error: (error as Error).message }), 
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
