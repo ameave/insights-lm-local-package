@@ -20,14 +20,13 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Docker volumes and data (to avoid committing large/generated data)
-supabase/volumes/
+supabase/volumes/db/data/
 local-ai-packaged/volumes/
-volumes/
+
 *.log
 
 # Supabase generated files
-supabase/docker/.env
-supabase/logs/
+supabase
 
 # N8N and other service logs
 n8n/logs/
