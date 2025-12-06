@@ -67,7 +67,7 @@ def prepare_env():
         print("Secrets prepared.")
 
 
-def stop_existing_containers(profile=None):
+def stop_existing_containers(project=None, profile=None):
     """Stop and remove existing containers for the unified project 'insights-lm'."""
     print("Stopping and removing existing containers for the unified project 'insights-lm'...")
     cmd = docker_compose(profile=profile)
@@ -103,12 +103,11 @@ def docker_compose(project=None, profile=None, environment=None, compose_files=[
     if profile and profile != "None":
         cmd.extend(["--profile", profile])
 
+    cmd.extend(["-f", "docker-compose.yml", "-f", "docker-compose.override.yml"])
+
     if environment:
         environment_compose = os.path.join("local-ai-packaged", f"docker-compose.override.{environment}.yml")
-        if os.path.exists(environment_compose):
-            cmd.extend(["-f", environment_compose])
-        else:
-            print(f"Warning: Docker Compose override file {environment_compose} does not exist and will be skipped.")
+        cmd.extend(["-f", environment_compose])
 
     for file in compose_files:
         if os.path.exists(file):
@@ -119,11 +118,11 @@ def docker_compose(project=None, profile=None, environment=None, compose_files=[
     return cmd
 
 
-def generate_yml(profile=None, environment=None, compose_files=[]):
+def generate_yml(project=None, profile=None, environment=None, compose_files=[]):
     """Generate the combined docker-compose.yml content."""
     print("Generating combined docker-compose.yml...")
 
-    cmd = docker_compose(profile, environment, compose_files)
+    cmd = docker_compose(project, profile, environment, compose_files)
 
     cmd.append("config")
 
@@ -132,11 +131,11 @@ def generate_yml(profile=None, environment=None, compose_files=[]):
     return result.stdout
 
 
-def start_insights_lm(profile=None, environment=None, compose_files=[]):
+def start_insights_lm(project=None, profile=None, environment=None, compose_files=[]):
     """Start the Insights LM services."""
     print("Starting Insights LM services...")
     
-    cmd = docker_compose(profile, environment, compose_files)
+    cmd = docker_compose(project, profile, environment, compose_files)
     
     cmd.extend(["up", "-d"])
 
@@ -228,7 +227,13 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Start the InsightsLM, Local AI and Supabase services.'
     )
-    
+
+    parser.add_argument(
+        '-n', '--name',
+        default='insights-lm',
+        help='Project name for Docker Compose (default: insights-lm)'
+    )
+
     parser.add_argument(
         '-p','--profile',
         choices=['cpu', 'gpu-nvidia', 'gpu-amd', 'none'],
@@ -256,6 +261,12 @@ def parse_args():
         help='Generate and print the combined docker-compose.yml content without starting services'
     )
     
+    parser.add_argument(
+        '-u','--update',
+        action='store_true',
+        help='Update Docker images and restart services'
+    )
+
     return parser.parse_args()
 
 
@@ -263,7 +274,7 @@ def main():
     args = parse_args()
 
     if args.config:
-        yml_content = generate_yml(args.profile, args.environment, args.compose_files)
+        yml_content = generate_yml(args.name, args.profile, args.environment, args.compose_files)
         print(yml_content)
         return
 
@@ -278,14 +289,19 @@ def main():
 
     # First pull all necessary images
     pull_docker_images([
-        "local-supabase/docker-compose.yml",
-        "insights-lm-local-package/docker-compose.yml",
-        "docker-compose.yml"
-        ] + args.compose_files, update=False)
+        "docker-compose.yml",
+        "local-ai-packaged/docker-compose.yml",
+        "supabase-insights-lm/docker-compose.yml"
+        ] + args.compose_files, update=args.update)
 
-    compose_files = args.compose_files.copy() + ["insights-lm-local-package/supabase-docker-compose.yml"]
+    compose_files = args.compose_files.copy()
 
-    start_insights_lm(args.profile, args.environment, compose_files)
+    start_insights_lm(
+        project=args.name,
+        profile=args.profile,
+        environment=args.environment,
+        compose_files=compose_files
+        )
 
 
 if __name__ == "__main__":
