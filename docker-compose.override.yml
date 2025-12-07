@@ -20,6 +20,10 @@ services:
       ADDITIONAL_SOURCES_WEBHOOK_URL: "${ADDITIONAL_SOURCES_WEBHOOK_URL}"
       NOTEBOOK_GENERATION_AUTH: "${NOTEBOOK_GENERATION_AUTH}"
 
+  caddy:
+    environment:
+      INSIGHTSLM_HOSTNAME: "${INSIGHTSLM_HOSTNAME}"
+
   langfuse-worker:
     environment: &langfuse-env
       DATABASE_HOST: db
