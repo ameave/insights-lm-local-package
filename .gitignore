@@ -22,6 +22,7 @@ pip-delete-this-directory.txt
 # Docker volumes and data (to avoid committing large/generated data)
 supabase/volumes/db/data/
 local-ai-packaged/volumes/
+supabase-insights-lm/volumes/db/data
 
 *.log
 
@@ -60,4 +61,9 @@ secrets/
 *.pem
 
 # Ignore local-ai-packaged repo
-local-ai-packaged/
+local-ai-packaged
+local-ai-packaged/caddy-addon/*
+
+# Secrets folders
+secrets/
+.secrets/
