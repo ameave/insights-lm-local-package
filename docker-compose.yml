@@ -57,6 +57,7 @@ services:
   coqui-tts-cpu:
     <<: *coqui-config
     profiles: ["cpu", "none"]  # Only run with CPU only profiles
+    command: ["--model_name", "${AUDIO_GENERATION_MODEL}", "--use_cuda", "false"]
 
 
   whisper-asr:
