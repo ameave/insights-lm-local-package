@@ -11,7 +11,6 @@ volumes:
 
 x-coqui-tts: &coqui-config
   image: ghcr.io/coqui-ai/tts
-  container_name: coqui-tts
   restart: unless-stopped
   environment:
     AUDIO_GENERATION_MODEL: ${AUDIO_GENERATION_MODEL}
@@ -46,6 +45,7 @@ services:
     restart: unless-stopped
 
   coqui-tts:
+    container_name: coqui-tts
     <<: *coqui-config
     profiles: ["gpu-nvidia", "gpu-amd"]  # Only run with GPU profiles
     deploy:
@@ -55,6 +55,7 @@ services:
             - capabilities: ["gpu"]
 
   coqui-tts-cpu:
+    container_name: coqui-tts-cpu
     <<: *coqui-config
     profiles: ["cpu", "none"]  # Only run with CPU only profiles
     command: ["--model_name", "${AUDIO_GENERATION_MODEL}", "--use_cuda", "false"]
