@@ -9,6 +9,17 @@ include:
 volumes:
   whisper_cache:
 
+x-coqui-tts: &coqui-config
+  image: ghcr.io/coqui-ai/tts
+  container_name: coqui-tts
+  restart: unless-stopped
+  environment:
+    AUDIO_GENERATION_MODEL: ${AUDIO_GENERATION_MODEL}
+  ports:
+    - 5002
+  entrypoint: ["python3", "TTS/server/server.py"]
+  command: ["--model_name", "${AUDIO_GENERATION_MODEL}", "--use_cuda", "true"]
+
 # Command to import InsightsLM database into supabase-db
 # x-insights-import:
 #   image: supabase/postgres:15.2.0
@@ -35,18 +46,18 @@ services:
     restart: unless-stopped
 
   coqui-tts:
-    image: ghcr.io/coqui-ai/tts
-    container_name: coqui-tts
-    restart: unless-stopped
-    ports:
-      - 5002
-    entrypoint: ["python3", "TTS/server/server.py"]
-    command: ["--model_name", "tts_models/en/vctk/vits", "--use_cuda", "true"]
+    <<: *coqui-config
+    profiles: ["gpu-nvidia", "gpu-amd"]  # Only run with GPU profiles
     deploy:
       resources:
         reservations:
           devices:
             - capabilities: ["gpu"]
+
+  coqui-tts-cpu:
+    <<: *coqui-config
+    profiles: ["cpu", "none"]  # Only run with CPU only profiles
+
 
   whisper-asr:
     image: onerahmet/openai-whisper-asr-webservice:latest-gpu
