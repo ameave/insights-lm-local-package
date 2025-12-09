@@ -23,6 +23,7 @@ pip-delete-this-directory.txt
 supabase/volumes/db/data/
 local-ai-packaged/volumes/
 supabase-insights-lm/volumes/db/data
+supabase-insights-lm/volumes/storage
 
 *.log
 
