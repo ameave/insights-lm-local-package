@@ -23,10 +23,10 @@ import shutil
 import argparse
 import secrets
 
-def run_command(cmd, cwd=None, capture_output=False):
+def run_command(cmd, cwd=None, capture_output=False, env=None):
     """Run a shell command and print it."""
     print("Running:", " ".join(cmd))
-    result = subprocess.run(cmd, cwd=cwd, check=True, capture_output=capture_output, text=True)
+    result = subprocess.run(cmd, env=env, cwd=cwd, check=True, capture_output=capture_output, text=True)
     return result
 
 
@@ -67,79 +67,78 @@ def prepare_env():
         print("Secrets prepared.")
 
 
-def stop_existing_containers(project=None, profile=None):
+def stop_existing_containers(project=None, profile=None, environment=None):
     """Stop and remove existing containers for the unified project 'insights-lm'."""
     print("Stopping and removing existing containers for the unified project 'insights-lm'...")
-    cmd = docker_compose(profile=profile)
+    cmd = docker_compose(project, profile)
     cmd.extend(["down"])
-    run_command(cmd)
+    run_command(cmd, env=environment)
 
 
-def pull_docker_images(compose_files=[], update=False):
-    """Pull the latest Docker images for the given compose files."""
-    chkcmd = ["docker", "image", "ls", "ollama/ollama:latest"]
-    container_check = subprocess.run(chkcmd, check=True, capture_output=True, text=True)
+def get_images_num(project=None):
+    """Get the number of Docker images used in the given compose files."""
+    countcmd = ["wc", "-l"]
+    chkcmd = ["docker", "compose", "images" ]
+    if project:
+        chkcmd.extend(["-p", project])
     
-    if "ollama/ollama:latest" in container_check.stdout and not update:
+    compose_cmd = subprocess.Popen(chkcmd, stdout=subprocess.PIPE)
+    wl_cmd = subprocess.Popen(countcmd, stdin=compose_cmd.stdout, stdout=subprocess.PIPE)
+    compose_cmd.stdout.close()  # Allow compose_cmd to receive a SIGPIPE if wl_cmd exits.
+    output, error = wl_cmd.communicate()
+    if error:
+        print("Error checking Docker images:", error)
+        return None
+    return output.decode()
+
+def pull_docker_images(project=None, update=False):
+    """Pull the latest Docker images for the given compose files."""
+    
+    if get_images_num(project) and not update:
         print("Images already present, skipping pull.")
         return
 
     """Pull the latest Docker images for the given compose files."""
-    for compose_file in compose_files:
-        print(f"Pulling latest images for {compose_file}...")
-        cmd = ["docker", "compose", "-p", "insights-lm", "--env-file", ".env", "-f", compose_file, "pull"]
-        run_command(cmd)
+    cmd = docker_compose(project)
+    cmd.extend(["pull"])
+    run_command(cmd)
 
 
-def docker_compose(project=None, profile=None, environment=None, compose_files=[], env_file=".env"):
+def docker_compose(project=None, profile=None):
     """Construct the docker-compose command with the given parameters."""
 
     cmd = ["docker", "compose"]
     if project is not None:
         cmd.extend(["-p", project])
-    
-    cmd.extend(["--env-file", env_file])
-    
-    if profile and profile != "None":
+
+    if profile is not None:
         cmd.extend(["--profile", profile])
-
-    cmd.extend(["-f", "docker-compose.yml", "-f", "docker-compose.override.yml"])
-
-    if environment:
-        environment_compose = os.path.join("local-ai-packaged", f"docker-compose.override.{environment}.yml")
-        cmd.extend(["-f", environment_compose])
-
-    for file in compose_files:
-        if os.path.exists(file):
-            cmd.extend(["-f", file])
-        else:
-            print(f"Warning: Docker Compose file {file} does not exist and will be skipped.")
 
     return cmd
 
 
-def generate_yml(project=None, profile=None, environment=None, compose_files=[]):
+def generate_yml(project=None, profile=None, environment=None):
     """Generate the combined docker-compose.yml content."""
     print("Generating combined docker-compose.yml...")
 
-    cmd = docker_compose(project, profile, environment, compose_files)
+    cmd = docker_compose(project, profile)
 
     cmd.append("config")
 
-    result = run_command(cmd, capture_output=True)
+    result = run_command(cmd, env = environment, capture_output=True)
 
     return result.stdout
 
 
-def start_insights_lm(project=None, profile=None, environment=None, compose_files=[]):
+def start_insights_lm(project=None, profile=None, environment=None):
     """Start the Insights LM services."""
     print("Starting Insights LM services...")
     
-    cmd = docker_compose(project, profile, environment, compose_files)
+    cmd = docker_compose(project, profile)
     
     cmd.extend(["up", "-d"])
 
-    run_command(cmd)
+    run_command(cmd, env = environment)
 
 
 def generate_searxng_secret_key():
@@ -249,13 +248,6 @@ def parse_args():
     )
 
     parser.add_argument(
-        '-f','--compose-files',
-        nargs='*',
-        default=[],
-        help='Additional Docker Compose files to include when starting Supabase'
-    )
-    
-    parser.add_argument(
         '-c','--config',
         action='store_true',
         help='Generate and print the combined docker-compose.yml content without starting services'
@@ -272,9 +264,15 @@ def parse_args():
 
 def main():
     args = parse_args()
+    
+    project = args.name
+    profile = args.profile
+    environment = {
+        "DEPLOY_ENVIRONMENT": args.environment
+    }
 
     if args.config:
-        yml_content = generate_yml(args.name, args.profile, args.environment, args.compose_files)
+        yml_content = generate_yml( project, profile, environment )
         print(yml_content)
         return
 
@@ -285,23 +283,13 @@ def main():
     generate_searxng_secret_key()
     check_and_fix_docker_compose_for_searxng()
 
-    stop_existing_containers(args.profile)
+    stop_existing_containers( project, profile, environment )
 
     # First pull all necessary images
-    pull_docker_images([
-        "docker-compose.yml",
-        "local-ai-packaged/docker-compose.yml",
-        "supabase-insights-lm/docker-compose.yml"
-        ] + args.compose_files, update=args.update)
+    pull_docker_images(project, update=args.update)
 
-    compose_files = args.compose_files.copy()
 
-    start_insights_lm(
-        project=args.name,
-        profile=args.profile,
-        environment=args.environment,
-        compose_files=compose_files
-        )
+    start_insights_lm( project, profile, environment )
 
 
 if __name__ == "__main__":
