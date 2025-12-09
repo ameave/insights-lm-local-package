@@ -3,8 +3,11 @@ name: insightslm
 include:
   - path:
     - "./local-ai-packaged/docker-compose.yml"
-    - "./local-ai-packaged/docker-compose.override.private.yml"
     project_directory: ./local-ai-packaged
+  - path:
+    - "./supabase-insights-lm/docker-compose.yml"
+    project_directory: ./supabase-insights-lm
+
 
 volumes:
   whisper_cache:
@@ -18,17 +21,6 @@ x-coqui-tts: &coqui-config
     - 5002
   entrypoint: ["python3", "TTS/server/server.py"]
   command: ["--model_name", "${AUDIO_GENERATION_MODEL}", "--use_cuda", "true"]
-
-# Command to import InsightsLM database into supabase-db
-# x-insights-import:
-#   image: supabase/postgres:15.2.0
-#   environment:
-#     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#     POSTGRES_USER: supabase_admin
-#     POSTGRES_DB: _supabase
-#   entrypoint: /bin/sh
-#   command:
-#     - psql -U supabase_admin -d _supabase -f /insightslm-migration.sql
 
 services:
 
@@ -64,6 +56,7 @@ services:
   whisper-asr:
     image: onerahmet/openai-whisper-asr-webservice:latest-gpu
     container_name: whisper-asr
+    profiles: ["gpu-nvidia", "gpu-amd"]  # Only run with GPU profiles
     restart: unless-stopped
     ports:
       - "9002:9000"
@@ -80,4 +73,3 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    profiles: ["gpu-nvidia"]  # Only run with GPU profile

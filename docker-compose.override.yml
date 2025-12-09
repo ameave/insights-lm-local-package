@@ -1,3 +1,6 @@
+include:
+  - path:
+    - "./local-ai-packaged/docker-compose.override.${DEPLOY_ENVIRONMENT:-private}.yml"
 
 services:
 
@@ -22,7 +25,9 @@ services:
 
   caddy:
     environment:
-      INSIGHTSLM_HOSTNAME: "${INSIGHTSLM_HOSTNAME}"
+      - INSIGHTSLM_HOSTNAME=${INSIGHTSLM_HOSTNAME:-":8010"}
+    volumes:
+      - ./caddy:/etc/caddy/addons:ro
 
   langfuse-worker:
     environment: &langfuse-env
@@ -50,6 +55,16 @@ services:
       DB_POSTGRESDB_DATABASE: _n8n
       DB_POSTGRESDB_SCHEMA: public
       DB_POSTGRESDB_USER: supabase_admin
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
+    command:
+      - "-c"
+      - |
+        # Preprocess workflows to add required fields without modifying originals
+        if [ -d /backup/workflows ]; then
+          mkdir -p /tmp/processed_workflows && cp /backup/workflows/*.json /tmp/processed_workflows/ 2>/dev/null || true
+          node -e "const fs=require('fs');const p='/tmp/processed_workflows';for(const f of fs.readdirSync(p).filter(x=>x.endsWith('.json'))){const fp=p+'/'+f;try{const j=JSON.parse(fs.readFileSync(fp,'utf8'));j.active=false;j.activeVersionId=null;j.activeVersion=null;fs.writeFileSync(fp,JSON.stringify(j),'utf8');}catch(e){console.error('Failed to preprocess',fp,e);}}"
+        fi
+        n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/tmp/processed_workflows
     depends_on:
       db:
         condition: service_healthy
@@ -60,7 +75,8 @@ services:
     environment:
       <<: *n8n-env
 
-  postgres: !reset null
+  postgres:
+    profiles: ["with-postgresql"]
 
   ollama-pull-llama-cpu:
     command: &pull-ollama-command
